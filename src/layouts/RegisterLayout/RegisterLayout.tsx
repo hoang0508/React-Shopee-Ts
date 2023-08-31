@@ -10,7 +10,6 @@ const RegisterLayout = ({ children }: IRegisterLayoutProps) => {
   return (
     <div>
       <RegisterHeader />
-      RegisterLayout
       {children}
       <Footer />
     </div>

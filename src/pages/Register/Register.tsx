@@ -1,31 +1,61 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { useForm } from 'react-hook-form'
-import { Link } from 'react-router-dom'
+import { FormMethod, Link, useNavigate } from 'react-router-dom'
 import { Input } from 'src/components/Input'
-import { getRules } from 'src/utils/rules'
+import { Schema, schema } from 'src/utils/rules'
+import { yupResolver } from '@hookform/resolvers/yup'
+import { useMutation } from '@tanstack/react-query'
+import { registerAccount } from 'src/apis/auth.api'
+import { omit } from 'lodash'
+import { isAxiosUnprocessableEntity } from 'src/utils/utils'
+import { ErrorResponse } from 'src/types/utils.type'
+import { AppContext } from 'src/contexts/app.context'
 
-interface FormData {
-  email: string
-  password: string
-  confirm_password: string
-}
+type FormData = Schema
 
 const Register = () => {
+  const { setIsAuthenticated } = useContext(AppContext)
+  const navigate = useNavigate()
   // react hook form
   const {
     handleSubmit,
+    setError,
     formState: { errors },
-    register,
-    getValues
-  } = useForm<FormData>()
+    register
+  } = useForm<FormData>({
+    resolver: yupResolver(schema)
+  })
 
   // rules
-  const rules = getRules(getValues)
+  // const rules = getRules(getValues)
+  const registerMutation = useMutation({
+    mutationFn: (data: Omit<FormData, 'confirm_password'>) => registerAccount(data)
+  })
 
-  const handleSubmitRegister = (values: any) => {
-    // console.log('🚀 ~ file: Register.tsx:9 ~ handleSubmitRegister ~ values:', values)
-    const password = getValues('password')
-    console.log('🚀 ~ file: Register.tsx:23 ~ handleSubmitRegister ~ password:', password)
+  // handle submit register
+  const handleSubmitRegister = (values: FormData) => {
+    const data = omit(values, ['confirm_password'])
+    registerMutation.mutate(data, {
+      onSuccess: (data) => {
+        setIsAuthenticated(true)
+        navigate('/')
+      },
+      onError: (error) => {
+        console.log('error', error)
+        if (isAxiosUnprocessableEntity<ErrorResponse<Omit<FormData, 'confirm_password'>>>(error)) {
+          const formError = error.response?.data?.data
+          console.log('🚀 ~ file: Register.tsx:43 ~ handleSubmitRegister ~ formError:', formError)
+          if (formError) {
+            Object.keys(formError).forEach((key) => {
+              setError(key as keyof Omit<FormData, 'confirm_password'>, {
+                message: formError[key as keyof Omit<FormData, 'confirm_password'>],
+                type: 'server'
+              })
+            })
+          }
+        }
+      }
+    })
   }
 
   // console.log('error', errors)
@@ -40,7 +70,7 @@ const Register = () => {
                 autoComplete='on'
                 name='email'
                 register={register}
-                rules={rules.email}
+                // rules={rules.email}
                 className='mt-8'
                 type='email'
                 placeholder='Email'
@@ -50,7 +80,7 @@ const Register = () => {
                 autoComplete='on'
                 name='password'
                 register={register}
-                rules={rules.password}
+                // rules={rules.password}
                 className='mt-2'
                 type='password'
                 placeholder='Password'
@@ -60,7 +90,7 @@ const Register = () => {
                 autoComplete='on'
                 name='confirm_password'
                 register={register}
-                rules={rules.confirm_password}
+                // rules={rules.confirm_password}
                 className='mt-2'
                 type='password'
                 placeholder='Confirm Password'
